@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FlixTime</title>
+    <style>
+        :root {
+            --bg-color: #0A1128;
+            --accent-color: #FF0044;
+            --text-color: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            padding-bottom: 20px;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            background-color: rgba(10, 17, 40, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 24px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255, 0, 68, 0.5);
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(255, 0, 68, 0.4);
+        }
+
+        .category {
+            margin-top: 25px;
+            padding-left: 15px;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #ddd;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 8px;
+        }
+
+        .row {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-right: 15px;
+            padding-bottom: 10px;
+            scroll-behavior: smooth;
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+
+        .row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .poster {
+            width: 130px;
+            height: 195px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: #1a2238; /* Placeholder color */
+        }
+
+        .poster:active {
+            transform: scale(0.95);
+        }
+
+        /* Modal styling */
+        #playerModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            z-index: 1000;
+            display: none;
+        }
+
+        #playerIframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #closeBtn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 0 15px rgba(255, 0, 68, 0.6);
+            transition: background-color 0.2s;
+        }
+
+        #closeBtn:active {
+            background-color: #d40038;
+            transform: scale(0.95);
+        }
+        
+        #loadingMsg {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>FlixTime</h1>
+        <input type="text" id="searchInput" placeholder="Search movies, shows...">
+    </header>
+
+    <main>
+        <div id="loadingMsg">Searching...</div>
+
+        <div id="searchResults" class="category" style="display:none;">
+            <h2>Search Results</h2>
+            <div class="row" id="searchRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>Trending</h2>
+            <div class="row" id="trendingRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>Hollywood</h2>
+            <div class="row" id="hollywoodRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>Bollywood</h2>
+            <div class="row" id="bollywoodRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>South Indian</h2>
+            <div class="row" id="southIndianRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>Korean</h2>
+            <div class="row" id="koreanRow"></div>
+        </div>
+
+        <div class="category">
+            <h2>Pakistani</h2>
+            <div class="row" id="pakistaniRow"></div>
+        </div>
+    </main>
+
+    <div id="playerModal">
+        <button id="closeBtn">Close</button>
+        <iframe id="playerIframe" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
+    </div>
+
+    <script>
+        const API_KEY = '2d45e26903f728b925fea962b8e7ddf0';
+        const BASE_URL = 'https://api.themoviedb.org/3';
+        const IMG_URL = 'https://image.tmdb.org/t/p/w500';
+
+        const categories = [
+            { id: 'trendingRow', url: `/trending/all/day?api_key=${API_KEY}` },
+            { id: 'hollywoodRow', url: `/discover/movie?api_key=${API_KEY}&with_original_language=en&sort_by=popularity.desc` },
+            { id: 'bollywoodRow', url: `/discover/movie?api_key=${API_KEY}&with_original_language=hi&sort_by=popularity.desc` },
+            { id: 'southIndianRow', url: `/discover/movie?api_key=${API_KEY}&with_original_language=te|ta|ml|kn&sort_by=popularity.desc` },
+            { id: 'koreanRow', url: `/discover/movie?api_key=${API_KEY}&with_original_language=ko&sort_by=popularity.desc` },
+            { id: 'pakistaniRow', url: `/discover/movie?api_key=${API_KEY}&with_original_language=ur&sort_by=popularity.desc` },
+        ];
+
+        function fetchMovies(url, rowId) {
+            fetch(BASE_URL + url)
+                .then(res => res.json())
+                .then(data => {
+                    const row = document.getElementById(rowId);
+                    row.innerHTML = '';
+                    if(data.results && data.results.length > 0) {
+                        data.results.forEach(item => {
+                            if(item.poster_path) {
+                                const img = document.createElement('img');
+                                img.src = IMG_URL + item.poster_path;
+                                img.className = 'poster';
+                                img.alt = item.title || item.name;
+                                img.loading = 'lazy';
+                                
+                                // For trending, check media_type, for discover movies, default to movie
+                                const mediaType = item.media_type || 'movie';
+                                img.onclick = () => openPlayer(item.id, mediaType);
+                                
+                                row.appendChild(img);
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.error('Error fetching data:', err));
+        }
+
+        // Initialize fetching
+        categories.forEach(cat => fetchMovies(cat.url, cat.id));
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchSection = document.getElementById('searchResults');
+        const searchRow = document.getElementById('searchRow');
+        const loadingMsg = document.getElementById('loadingMsg');
+        let debounceTimer;
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+            
+            if (query === '') {
+                searchSection.style.display = 'none';
+                loadingMsg.style.display = 'none';
+                return;
+            }
+            
+            loadingMsg.style.display = 'block';
+            
+            debounceTimer = setTimeout(() => {
+                fetch(`${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        searchRow.innerHTML = '';
+                        loadingMsg.style.display = 'none';
+                        
+                        // Filter out people, only keep movie/tv with posters
+                        const results = data.results ? data.results.filter(item => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path) : [];
+
+                        if(results.length > 0) {
+                            searchSection.style.display = 'block';
+                            results.forEach(item => {
+                                const img = document.createElement('img');
+                                img.src = IMG_URL + item.poster_path;
+                                img.className = 'poster';
+                                img.alt = item.title || item.name;
+                                img.onclick = () => openPlayer(item.id, item.media_type);
+                                searchRow.appendChild(img);
+                            });
+                        } else {
+                            searchSection.style.display = 'none';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error searching:', err);
+                        loadingMsg.style.display = 'none';
+                    });
+            }, 600);
+        });
+
+        // Player functionality
+        function openPlayer(id, type) {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('playerIframe');
+            // Ensure media type is explicitly movie or tv for vidsrc.to
+            const mediaType = (type === 'tv') ? 'tv' : 'movie';
+            
+            iframe.src = `https://vidsrc.to/embed/${mediaType}/${id}`;
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+
+        document.getElementById('closeBtn').onclick = () => {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('playerIframe');
+            
+            modal.style.display = 'none';
+            iframe.src = '';
+            document.body.style.overflow = ''; // Restore scrolling
+        };
+    </script>
+</body>
+</html>
