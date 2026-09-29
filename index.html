@@ -310,7 +310,7 @@
             // Ensure media type is explicitly movie or tv for vidsrc.me
             const mediaType = (type === 'tv') ? 'tv' : 'movie';
             
-            iframe.src = `https://vidsrc.me,/embed/${mediaType}/${id}`;
+            iframe.src = `https://vidsrc.me/embed/${mediaType}/${id}`;
             modal.style.display = 'block';
             document.body.style.overflow = 'hidden'; // Prevent background scrolling
         }
